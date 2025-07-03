@@ -600,10 +600,10 @@ class DatabaseService {
     }
   }
 
-  // Fetch SDSA users reporting to specific designations (Chief Business Officer, Regional Business Head, Director)
-  static Future<Map<String, dynamic>> fetchSDSAUsersByDesignation() async {
+  // Fetch users with specific designations (Chief Business Officer, Regional Business Head, Director)
+  static Future<List<Map<String, dynamic>>> fetchSDSAUsersByDesignation() async {
     try {
-      print('🔍 Fetching SDSA users reporting to specific designations...');
+      print('🔍 Fetching users with specific designations...');
       print('🌐 API URL: $baseUrl/fetch_sdsa_users_by_designation.php');
       
       final networkTest = await NetworkService.testServerConnectivity();
@@ -619,25 +619,25 @@ class DatabaseService {
         },
       ).timeout(const Duration(seconds: 30));
 
-      print('📡 Fetch SDSA users by designation status: ${response.statusCode}');
-      print('📄 Fetch SDSA users by designation body: ${response.body}');
+      print('📡 Fetch users by designation status: ${response.statusCode}');
+      print('📄 Fetch users by designation body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Fetch SDSA users by designation response: $data');
+        print('✅ Fetch users by designation response: $data');
         
         if (data['success'] == true) {
-          return data;
+          return List<Map<String, dynamic>>.from(data['users'] ?? []);
         } else {
-          throw Exception(data['message'] ?? 'Failed to fetch SDSA users by designation');
+          throw Exception(data['message'] ?? 'Failed to fetch users by designation');
         }
       } else {
         print('❌ HTTP Error: ${response.statusCode}');
         print('❌ Error body: ${response.body}');
-        throw Exception('Failed to fetch SDSA users by designation: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to fetch users by designation: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('❌ Fetch SDSA users by designation error: $e');
+      print('❌ Fetch users by designation error: $e');
       if (e.toString().contains('SocketException')) {
         throw Exception('Network connection failed. Please check your internet connection.');
       } else if (e.toString().contains('TimeoutException')) {

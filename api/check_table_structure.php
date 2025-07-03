@@ -21,29 +21,34 @@ try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
-    // Get table structure
-    $query = "DESCRIBE tbl_sdsa_users";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute();
+    $result = [];
     
-    $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Check tbl_user structure
+    $stmt = $pdo->query("DESCRIBE tbl_user");
+    $userColumns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result['tbl_user_columns'] = $userColumns;
     
-    // Get sample data
-    $sampleQuery = "SELECT * FROM tbl_sdsa_users LIMIT 3";
-    $sampleStmt = $pdo->prepare($sampleQuery);
-    $sampleStmt->execute();
+    // Check tbl_designation structure
+    $stmt = $pdo->query("DESCRIBE tbl_designation");
+    $designationColumns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result['tbl_designation_columns'] = $designationColumns;
     
-    $sampleData = $sampleStmt->fetchAll(PDO::FETCH_ASSOC);
+    // Get sample data from tbl_user
+    $stmt = $pdo->query("SELECT * FROM tbl_user LIMIT 3");
+    $userSample = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result['tbl_user_sample'] = $userSample;
+    
+    // Get sample data from tbl_designation
+    $stmt = $pdo->query("SELECT * FROM tbl_designation LIMIT 5");
+    $designationSample = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result['tbl_designation_sample'] = $designationSample;
     
     // Return success response
     echo json_encode([
         'success' => true,
-        'message' => 'Table structure retrieved successfully',
-        'table_name' => 'tbl_sdsa_users',
-        'columns' => $columns,
-        'sample_data' => $sampleData,
-        'column_count' => count($columns)
-    ]);
+        'message' => 'Table structure checked successfully',
+        'data' => $result
+    ], JSON_PRETTY_PRINT);
     
 } catch (PDOException $e) {
     // Return error response
