@@ -2908,15 +2908,26 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
     });
 
     try {
-      // Predefined designations as per requirement
-      setState(() {
-        designationOptions = [
-          'Chief Business Officer',
-          'Regional Business Head', 
-          'Director'
-        ];
-        isLoadingDesignations = false;
-      });
+      // Fetch users with designations from API
+      final response = await DatabaseService.fetchSDSAUsersByDesignation();
+      
+      if (response['success'] == true) {
+        final dropdownOptions = List<String>.from(response['dropdown_options'] ?? []);
+        setState(() {
+          designationOptions = dropdownOptions;
+          isLoadingDesignations = false;
+        });
+      } else {
+        // Fallback to predefined options if API fails
+        setState(() {
+          designationOptions = [
+            'Chief Business Officer',
+            'Regional Business Head', 
+            'Director'
+          ];
+          isLoadingDesignations = false;
+        });
+      }
     } catch (e) {
       setState(() {
         isLoadingDesignations = false;
@@ -2929,6 +2940,14 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
           ),
         );
       }
+      // Fallback to predefined options
+      setState(() {
+        designationOptions = [
+          'Chief Business Officer',
+          'Regional Business Head', 
+          'Director'
+        ];
+      });
     }
   }
 
@@ -2961,25 +2980,31 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
     }
   }
 
-  Future<void> _fetchUsersByDesignation(String designation) async {
+  Future<void> _fetchUsersByDesignation(String selectedOption) async {
     try {
       setState(() {
         isLoading = true;
         errorMessage = '';
       });
 
-      final fetchedUsers = await DatabaseService.fetchSDSAUsersByDesignation();
+      final response = await DatabaseService.fetchSDSAUsersByDesignation();
       
-      // Filter users by the selected designation
-      final filtered = fetchedUsers.where((user) {
-        final userDesignation = user['designation_name']?.toString() ?? '';
-        return userDesignation.toLowerCase() == designation.toLowerCase();
-      }).toList();
-      
-      setState(() {
-        designationUsers = filtered;
-        isLoading = false;
-      });
+      if (response['success'] == true) {
+        final allUsers = List<Map<String, dynamic>>.from(response['users'] ?? []);
+        
+        // Find the user that matches the selected dropdown option
+        final selectedUser = allUsers.where((user) {
+          final displayName = user['display_name']?.toString() ?? '';
+          return displayName == selectedOption;
+        }).toList();
+        
+        setState(() {
+          designationUsers = selectedUser;
+          isLoading = false;
+        });
+      } else {
+        throw Exception(response['message'] ?? 'Failed to fetch users');
+      }
     } catch (e) {
       setState(() {
         errorMessage = e.toString();

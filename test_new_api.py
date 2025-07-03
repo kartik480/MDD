@@ -1,42 +1,44 @@
 #!/usr/bin/env python3
 """
-Test script for the SDSA users by designation API endpoint
+Test script for the new fetch_sdsa_users_by_designation.php API
 """
 
-import requests
+import urllib.request
 import json
 
-def test_sdsa_users_by_designation_api():
+def test_new_api():
     """Test the fetch_sdsa_users_by_designation.php API endpoint"""
     
     # API endpoint URL
     url = "http://emp.kfinone.com/mobile/api/fetch_sdsa_users_by_designation.php"
     
-    print("🔍 Testing SDSA Users by Designation API...")
+    print("🔍 Testing New SDSA Users by Designation API...")
     print(f"🌐 URL: {url}")
     print("-" * 50)
     
     try:
         # Make GET request
-        response = requests.get(url, timeout=30)
+        req = urllib.request.Request(url, headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=30) as response:
+            response_text = response.read().decode('utf-8')
+            
+        print(f"📡 Status Code: {response.status}")
+        print(f"📄 Response Body: {response_text}")
         
-        print(f"📡 Status Code: {response.status_code}")
-        print(f"📄 Response Headers: {dict(response.headers)}")
-        print(f"📄 Response Body: {response.text}")
-        
-        if response.status_code == 200:
+        if response.status == 200:
             try:
-                data = response.json()
+                data = json.loads(response_text)
                 print("\n✅ JSON Response:")
                 print(json.dumps(data, indent=2))
                 
                 if data.get('success'):
                     users = data.get('users', [])
+                    dropdown_options = data.get('dropdown_options', [])
                     count = data.get('count', 0)
+                    
                     print(f"\n📊 Found {count} users with specific designations")
                     
                     # Show dropdown options
-                    dropdown_options = data.get('dropdown_options', [])
                     if dropdown_options:
                         print("\n📋 Dropdown Options:")
                         for i, option in enumerate(dropdown_options):
@@ -57,14 +59,10 @@ def test_sdsa_users_by_designation_api():
             except json.JSONDecodeError as e:
                 print(f"❌ Failed to parse JSON response: {e}")
         else:
-            print(f"❌ HTTP Error: {response.status_code}")
+            print(f"❌ HTTP Error: {response.status}")
             
-    except requests.exceptions.Timeout:
-        print("❌ Request timed out")
-    except requests.exceptions.ConnectionError:
-        print("❌ Connection error - check network connectivity")
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    test_sdsa_users_by_designation_api() 
+    test_new_api() 

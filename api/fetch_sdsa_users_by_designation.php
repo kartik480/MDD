@@ -29,7 +29,8 @@ try {
             u.firstName,
             u.lastName,
             u.designation_id,
-            d.designation_name
+            d.designation_name,
+            CONCAT(u.firstName, ' ', u.lastName, ' (', d.designation_name, ')') as display_name
         FROM tbl_user u
         INNER JOIN tbl_designation d ON u.designation_id = d.id
         WHERE d.designation_name IN ('Chief Business Officer', 'Regional Business Head', 'Director')
@@ -41,11 +42,18 @@ try {
     
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Create dropdown options with user names and designations
+    $dropdownOptions = [];
+    foreach ($users as $user) {
+        $dropdownOptions[] = $user['display_name'];
+    }
+    
     // Return success response
     echo json_encode([
         'success' => true,
         'message' => 'Users with specific designations fetched successfully',
         'users' => $users,
+        'dropdown_options' => $dropdownOptions,
         'count' => count($users)
     ]);
     
@@ -56,6 +64,7 @@ try {
         'success' => false,
         'message' => 'Database error: ' . $e->getMessage(),
         'users' => [],
+        'dropdown_options' => [],
         'count' => 0
     ]);
 } catch (Exception $e) {
@@ -65,6 +74,7 @@ try {
         'success' => false,
         'message' => 'Server error: ' . $e->getMessage(),
         'users' => [],
+        'dropdown_options' => [],
         'count' => 0
     ]);
 }

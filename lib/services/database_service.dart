@@ -601,7 +601,7 @@ class DatabaseService {
   }
 
   // Fetch users with specific designations (Chief Business Officer, Regional Business Head, Director)
-  static Future<List<Map<String, dynamic>>> fetchSDSAUsersByDesignation() async {
+  static Future<Map<String, dynamic>> fetchSDSAUsersByDesignation() async {
     try {
       print('🔍 Fetching users with specific designations...');
       print('🌐 API URL: $baseUrl/fetch_sdsa_users_by_designation.php');
@@ -627,7 +627,7 @@ class DatabaseService {
         print('✅ Fetch users by designation response: $data');
         
         if (data['success'] == true) {
-          return List<Map<String, dynamic>>.from(data['users'] ?? []);
+          return data;
         } else {
           throw Exception(data['message'] ?? 'Failed to fetch users by designation');
         }
