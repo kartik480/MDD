@@ -502,56 +502,6 @@ class DatabaseService {
     }
   }
 
-  // Fetch My SDSA users created by superadmin
-  static Future<List<Map<String, dynamic>>> fetchMySDSAUsers() async {
-    try {
-      print('🔍 Fetching My SDSA users created by superadmin...');
-      print('🌐 API URL: $baseUrl/fetch_my_sdsa_users.php');
-      
-      final networkTest = await NetworkService.testServerConnectivity();
-      if (!networkTest['success']) {
-        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
-      }
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/fetch_my_sdsa_users.php'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 30));
-
-      print('📡 Fetch My SDSA users status: ${response.statusCode}');
-      print('📄 Fetch My SDSA users body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        print('✅ Fetch My SDSA users response: $data');
-        
-        if (data['success'] == true) {
-          return List<Map<String, dynamic>>.from(data['my_sdsa_users'] ?? []);
-        } else {
-          throw Exception(data['message'] ?? 'Failed to fetch My SDSA users');
-        }
-      } else {
-        print('❌ HTTP Error: ${response.statusCode}');
-        print('❌ Error body: ${response.body}');
-        throw Exception('Failed to fetch My SDSA users: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      print('❌ Fetch My SDSA users error: $e');
-      if (e.toString().contains('SocketException')) {
-        throw Exception('Network connection failed. Please check your internet connection.');
-      } else if (e.toString().contains('TimeoutException')) {
-        throw Exception('Request timed out. Please try again.');
-      } else {
-        throw Exception('Connection error: $e');
-      }
-    }
-  }
-
-
-
   // Fetch SDSA users who report to KRAJESHK
   static Future<List<Map<String, dynamic>>> fetchSDSAUsersReportingToKrajeshk() async {
     try {
@@ -638,6 +588,54 @@ class DatabaseService {
       }
     } catch (e) {
       print('❌ Fetch users by designation error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
+
+  // Fetch My SDSA users who report to KRAJESHK (id 1)
+  static Future<List<Map<String, dynamic>>> fetchMySDSAUsers() async {
+    try {
+      print('🔍 Fetching My SDSA users who report to KRAJESHK...');
+      print('🌐 API URL: $baseUrl/fetch_my_sdsa_users.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_my_sdsa_users.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch My SDSA users status: ${response.statusCode}');
+      print('📄 Fetch My SDSA users body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch My SDSA users response: $data');
+        
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['sdsa_users'] ?? []);
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch My SDSA users');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch My SDSA users: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch My SDSA users error: $e');
       if (e.toString().contains('SocketException')) {
         throw Exception('Network connection failed. Please check your internet connection.');
       } else if (e.toString().contains('TimeoutException')) {
