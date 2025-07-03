@@ -5,10 +5,11 @@ import 'network_service.dart';
 class DatabaseService {
   static const String baseUrl = 'http://emp.kfinone.com/mobile/api';
   
-  // Database credentials
-  static const String dbName = 'u344026722_md';
-  static const String dbUsername = 'u344026722_md';
-  static const String dbPassword = '@h9DDnaX';
+  // Database credentials (for reference - actual connection handled by PHP APIs)
+  static const String dbName = 'emp_kfinone';
+  static const String dbUsername = 'emp_kfinone';
+  static const String dbPassword = '*F*im1!Y0D25';
+  static const String dbServer = 'p3plzcpnl508816.prod.phx3.secureserver.net';
 
   // Login user
   static Future<Map<String, dynamic>> loginUser(String username, String password) async {
@@ -450,6 +451,200 @@ class DatabaseService {
     } catch (e) {
       print('❌ Fetch DSA codes error: $e');
       throw Exception('Connection error: $e');
+    }
+  }
+
+  // Fetch partner users from tbl_partner_users table
+  static Future<List<Map<String, dynamic>>> fetchPartnerUsers() async {
+    try {
+      print('🔍 Fetching partner users from tbl_partner_users table...');
+      print('🌐 API URL: $baseUrl/fetch_partner_users.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_partner_users.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch partner users status: ${response.statusCode}');
+      print('📄 Fetch partner users body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch partner users response: $data');
+        
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['partner_users'] ?? []);
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch partner users');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch partner users: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch partner users error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
+
+  // Fetch My SDSA users created by superadmin
+  static Future<List<Map<String, dynamic>>> fetchMySDSAUsers() async {
+    try {
+      print('🔍 Fetching My SDSA users created by superadmin...');
+      print('🌐 API URL: $baseUrl/fetch_my_sdsa_users.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_my_sdsa_users.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch My SDSA users status: ${response.statusCode}');
+      print('📄 Fetch My SDSA users body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch My SDSA users response: $data');
+        
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['my_sdsa_users'] ?? []);
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch My SDSA users');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch My SDSA users: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch My SDSA users error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
+
+
+
+  // Fetch SDSA users who report to KRAJESHK
+  static Future<List<Map<String, dynamic>>> fetchSDSAUsersReportingToKrajeshk() async {
+    try {
+      print('🔍 Fetching SDSA users who report to KRAJESHK...');
+      print('🌐 API URL: $baseUrl/fetch_sdsa_users_reporting_to_krajeshk.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_sdsa_users_reporting_to_krajeshk.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch SDSA users reporting to KRAJESHK status: ${response.statusCode}');
+      print('📄 Fetch SDSA users reporting to KRAJESHK body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch SDSA users reporting to KRAJESHK response: $data');
+        
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['sdsa_users'] ?? []);
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch SDSA users reporting to KRAJESHK');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch SDSA users reporting to KRAJESHK: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch SDSA users reporting to KRAJESHK error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
+
+  // Fetch SDSA users reporting to specific designations (Chief Business Officer, Regional Business Head, Director)
+  static Future<Map<String, dynamic>> fetchSDSAUsersByDesignation() async {
+    try {
+      print('🔍 Fetching SDSA users reporting to specific designations...');
+      print('🌐 API URL: $baseUrl/fetch_sdsa_users_by_designation.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_sdsa_users_by_designation.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch SDSA users by designation status: ${response.statusCode}');
+      print('📄 Fetch SDSA users by designation body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch SDSA users by designation response: $data');
+        
+        if (data['success'] == true) {
+          return data;
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch SDSA users by designation');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch SDSA users by designation: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch SDSA users by designation error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
     }
   }
 } 
