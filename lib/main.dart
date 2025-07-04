@@ -4054,12 +4054,15 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                   size: 24,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'SDSA Users Reporting to ${selectedUserId ?? 'Selected Designated User'} (${reportingUsers.length})',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                Expanded(
+                  child: Text(
+                    'SDSA Users Reporting to ${selectedUserId ?? 'Selected Designated User'} (${reportingUsers.length})',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -4106,21 +4109,27 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                                     if (fullName.isEmpty) ...[
                                       const Icon(Icons.warning, color: Colors.orange, size: 16),
                                       const SizedBox(width: 4),
-                                      const Text(
-                                        'No employee name',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.orange,
+                                      Expanded(
+                                        child: Text(
+                                          'No employee name',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ] else ...[
-                                      Text(
-                                        fullName,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
+                                      Expanded(
+                                        child: Text(
+                                          fullName,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
@@ -4149,6 +4158,7 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                                     fontWeight: FontWeight.w500,
                                     color: Colors.black87,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
@@ -4177,6 +4187,7 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                               fontWeight: FontWeight.w500,
                               color: Colors.black87,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
