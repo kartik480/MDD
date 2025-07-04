@@ -7696,65 +7696,36 @@ class _AgentTeamPageState extends State<AgentTeamPage> {
         isLoading = true;
       });
 
-      // For now, we'll use mock data since we don't have an agent API yet
-      // In the future, this would call DatabaseService.fetchAgents()
-      await Future.delayed(const Duration(seconds: 1)); // Simulate API call
+      // Fetch designated users from existing API
+      final response = await DatabaseService.fetchUsersByDesignation();
       
-      setState(() {
-        agents = [
-          {
-            'fullname': 'John Doe',
-            'company_name': 'ABC Corporation',
-            'mobile': '+91 9876543210',
-            'agent_type': 'Individual',
-            'branch_state': 'Maharashtra',
-            'branch_location': 'Mumbai',
-            'email': 'john.doe@abc.com',
-            'address': '123 Main Street, Mumbai, Maharashtra',
-          },
-          {
-            'fullname': 'Jane Smith',
-            'company_name': 'XYZ Enterprises',
-            'mobile': '+91 8765432109',
-            'agent_type': 'Company',
-            'branch_state': 'Delhi',
-            'branch_location': 'Delhi',
-            'email': 'jane.smith@xyz.com',
-            'address': '456 Business Park, Delhi',
-          },
-          {
-            'fullname': 'Mike Johnson',
-            'company_name': 'Tech Solutions LLP',
-            'mobile': '+91 7654321098',
-            'agent_type': 'LLP',
-            'branch_state': 'Karnataka',
-            'branch_location': 'Bangalore',
-            'email': 'mike.johnson@techsolutions.com',
-            'address': '789 Tech Hub, Bangalore, Karnataka',
-          },
-          {
-            'fullname': 'Sarah Wilson',
-            'company_name': 'Global Partners',
-            'mobile': '+91 6543210987',
-            'agent_type': 'Partnership',
-            'branch_state': 'Tamil Nadu',
-            'branch_location': 'Chennai',
-            'email': 'sarah.wilson@globalpartners.com',
-            'address': '321 Global Plaza, Chennai, Tamil Nadu',
-          },
-          {
-            'fullname': 'David Brown',
-            'company_name': 'Brown & Associates',
-            'mobile': '+91 5432109876',
-            'agent_type': 'Sole Proprietorship',
-            'branch_state': 'Gujarat',
-            'branch_location': 'Ahmedabad',
-            'email': 'david.brown@brownassociates.com',
-            'address': '654 Business Center, Ahmedabad, Gujarat',
-          },
-        ];
-        isLoading = false;
-      });
+      if (response['success'] == true) {
+        final designatedUsers = List<Map<String, dynamic>>.from(response['users'] ?? []);
+        
+        setState(() {
+          agents = designatedUsers.map((user) => {
+            'fullname': '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim(),
+            'company_name': user['designation_name'] ?? 'N/A',
+            'mobile': user['phone'] ?? user['mobile'] ?? 'N/A',
+            'agent_type': user['designation_name'] ?? 'N/A',
+            'branch_state': 'N/A', // Not available in user data
+            'branch_location': 'N/A', // Not available in user data
+            'email': user['email'] ?? user['email_id'] ?? 'N/A',
+            'address': 'N/A', // Not available in user data
+            'id': user['id'],
+            'designation_id': user['designation_id'],
+            'reportingTo': user['reportingTo'],
+          }).toList();
+          isLoading = false;
+        });
+        
+        print('🔍 Agent Team Debug - Fetched ${agents.length} designated users');
+        if (agents.isNotEmpty) {
+          print('🔍 Agent Team Debug - First agent: ${agents.first}');
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Failed to fetch designated users');
+      }
     } catch (e) {
       setState(() {
         isLoading = false;
@@ -7891,32 +7862,108 @@ class _AgentTeamPageState extends State<AgentTeamPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Select Agent',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Select Agent',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _fetchAgents,
+                          icon: const Icon(Icons.refresh, color: Colors.blue),
+                          tooltip: 'Refresh agents',
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedAgentId,
-                          hint: const Text('Choose an agent'),
-                          isExpanded: true,
+                    if (isLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    else if (agents.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.red.withOpacity(0.1),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.error, color: Colors.red, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'No agents found. Please check your connection.',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedAgentId,
+                            hint: Text('Choose an agent (${agents.length} available)'),
+                            isExpanded: true,
                           items: agents.map((agent) {
+                            final fullname = agent['fullname']?.toString() ?? '';
+                            final designation = agent['company_name']?.toString() ?? '';
+                            
+                            print('🔍 Creating dropdown item: fullname="$fullname", designation="$designation"');
+                            
+                            // Show warning for agents with no name
+                            if (fullname.isEmpty) {
+                              return DropdownMenuItem<String>(
+                                value: 'No Name - ID: ${agent['id']}',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.warning, color: Colors.orange, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'No Name - ID: ${agent['id']}',
+                                      style: const TextStyle(fontSize: 16, color: Colors.orange),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            
                             return DropdownMenuItem<String>(
-                              value: agent['fullname'],
-                              child: Text(
-                                agent['fullname'],
-                                style: const TextStyle(fontSize: 16),
+                              value: fullname,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      fullname,
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (designation.isNotEmpty && designation != 'N/A')
+                                      Text(
+                                        designation,
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
                               ),
                             );
                           }).toList(),
