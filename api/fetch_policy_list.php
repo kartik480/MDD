@@ -21,19 +21,34 @@ try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
-    // Get all users from tbl_user table
-    $query = "SELECT id, username, firstName, lastName FROM tbl_user LIMIT 10";
+    // Fetch policies from tbl_policy with vendor bank and loan type names
+    $query = "
+        SELECT 
+            p.id,
+            p.vendor_bank_id,
+            p.loan_type_id,
+            p.image,
+            p.content,
+            vb.vendor_bank_name,
+            lt.loan_type
+        FROM tbl_policy p
+        LEFT JOIN tbl_vendor_bank vb ON p.vendor_bank_id = vb.id
+        LEFT JOIN tbl_loan_type lt ON p.loan_type_id = lt.id
+        ORDER BY p.id DESC
+    ";
+    
     $stmt = $pdo->prepare($query);
     $stmt->execute();
+    $policies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Return success response
+    // Return success response with policy data
     echo json_encode([
         'success' => true,
-        'message' => 'Users retrieved successfully',
-        'users' => $users,
-        'count' => count($users)
+        'message' => 'Policy list fetched successfully',
+        'data' => [
+            'policies' => $policies,
+            'count' => count($policies)
+        ]
     ]);
     
 } catch (PDOException $e) {
@@ -42,7 +57,10 @@ try {
     echo json_encode([
         'success' => false,
         'message' => 'Database error: ' . $e->getMessage(),
-        'users' => []
+        'data' => [
+            'policies' => [],
+            'count' => 0
+        ]
     ]);
 } catch (Exception $e) {
     // Return error response
@@ -50,7 +68,10 @@ try {
     echo json_encode([
         'success' => false,
         'message' => 'Server error: ' . $e->getMessage(),
-        'users' => []
+        'data' => [
+            'policies' => [],
+            'count' => 0
+        ]
     ]);
 }
 ?> 

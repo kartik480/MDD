@@ -888,4 +888,100 @@ class DatabaseService {
       }
     }
   }
+
+  // Fetch policy list from database
+  static Future<List<Map<String, dynamic>>> fetchPolicyList() async {
+    try {
+      print('🔍 Fetching policy list...');
+      print('🌐 API URL: $baseUrl/fetch_policy_list.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_policy_list.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch policy list status: ${response.statusCode}');
+      print('📄 Fetch policy list body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch policy list response: $data');
+        
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['data']['policies'] ?? []);
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch policy list');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch policy list: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch policy list error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
+
+  // Fetch dashboard statistics
+  static Future<Map<String, dynamic>> fetchDashboardStats() async {
+    try {
+      print('🔍 Fetching dashboard statistics...');
+      print('🌐 API URL: $baseUrl/fetch_dashboard_stats.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_dashboard_stats.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch dashboard stats status: ${response.statusCode}');
+      print('📄 Fetch dashboard stats body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch dashboard stats response: $data');
+        
+        if (data['success'] == true) {
+          return data['data'] ?? {};
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch dashboard statistics');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch dashboard statistics: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch dashboard stats error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
 } 

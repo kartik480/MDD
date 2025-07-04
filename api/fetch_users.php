@@ -21,8 +21,22 @@ try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
-    // Get all users from tbl_user table
-    $query = "SELECT id, username, firstName, lastName FROM tbl_user LIMIT 10";
+    // Get all users from tbl_user table (same as used in My Employees)
+    $query = "
+        SELECT 
+            u.id,
+            u.username,
+            u.firstName,
+            u.lastName,
+            u.designation_id,
+            u.reportingTo,
+            d.designation_name,
+            CONCAT(u.firstName, ' ', u.lastName) as full_name
+        FROM tbl_user u
+        LEFT JOIN tbl_designation d ON u.designation_id = d.id
+        ORDER BY u.firstName, u.lastName
+    ";
+    
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     
@@ -42,7 +56,8 @@ try {
     echo json_encode([
         'success' => false,
         'message' => 'Database error: ' . $e->getMessage(),
-        'users' => []
+        'users' => [],
+        'count' => 0
     ]);
 } catch (Exception $e) {
     // Return error response
@@ -50,7 +65,8 @@ try {
     echo json_encode([
         'success' => false,
         'message' => 'Server error: ' . $e->getMessage(),
-        'users' => []
+        'users' => [],
+        'count' => 0
     ]);
 }
 ?> 

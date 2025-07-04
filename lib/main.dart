@@ -134,54 +134,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     }
   }
 
-  void _testConnectivity() async {
-    setState(() {
-      _isLoading = true;
-    });
 
-    try {
-      print('🔍 Testing connectivity...');
-      final isConnected = await DatabaseService.testBasicConnectivity();
-      
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (isConnected) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Server connection successful!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Cannot connect to server. Check internet connection.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Connectivity test failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -402,47 +355,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                           ),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                
-                                // Connectivity Test Button
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 40,
-                                  child: OutlinedButton(
-                                    onPressed: _isLoading ? null : _testConnectivity,
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.blue,
-                                      side: const BorderSide(color: Colors.blue),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Test Connection',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                // Forgot Password Link
-                                TextButton(
-                                  onPressed: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Forgot password functionality'),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    'Forgot Password?',
-                                    style: TextStyle(color: Colors.blue),
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -472,6 +384,11 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  
+  // Dashboard statistics
+  Map<String, dynamic> _dashboardStats = {};
+  bool _isLoadingStats = true;
+  String _statsError = '';
 
   @override
   void initState() {
@@ -484,12 +401,80 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _animationController.forward();
+    
+    // Fetch dashboard statistics
+    _fetchDashboardStats();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchDashboardStats() async {
+    try {
+      setState(() {
+        _isLoadingStats = true;
+        _statsError = '';
+      });
+
+      // Try to fetch from API first
+      try {
+        final stats = await DatabaseService.fetchDashboardStats();
+        setState(() {
+          _dashboardStats = stats;
+          _isLoadingStats = false;
+        });
+      } catch (apiError) {
+        // If API fails, calculate from existing data
+        print('API failed, calculating from existing data: $apiError');
+        
+        // Fetch users from existing working API
+        final users = await DatabaseService.fetchUsers();
+        
+        // Fetch SDSA users from existing working API
+        int sdsaCount = 0;
+        try {
+          final sdsaUsers = await DatabaseService.fetchMySDSAUsers();
+          sdsaCount = sdsaUsers.length;
+          print('📊 Dashboard Debug - SDSA count calculated: $sdsaCount');
+          print('📊 Dashboard Debug - SDSA users: ${sdsaUsers.length} users found');
+        } catch (sdsaError) {
+          print('SDSA API failed, using 0: $sdsaError');
+          sdsaCount = 0;
+        }
+        
+        final dashboardData = {
+          'total_emp': users.length,
+          'total_sdsa': sdsaCount, // Calculate from existing Active SDSA List
+          'total_partner': 0, // Will be updated when Partner API is available
+          'total_portfolio': 0, // Will be updated when Portfolio API is available
+          'total_agents': 0, // Will be updated when Agents API is available
+        };
+        
+        print('📊 Dashboard Debug - Final stats: $dashboardData');
+        
+        setState(() {
+          _dashboardStats = dashboardData;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _statsError = e.toString();
+        _isLoadingStats = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load dashboard statistics: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showSnackBar(String message) {
@@ -613,22 +598,102 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                           ),
                           const SizedBox(height: 20),
 
-                          // Quick Stats
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildQuickStat('Total Employees', '156', Icons.people, Colors.blue),
+                          // Dashboard Statistics Cards
+                          if (_isLoadingStats)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(20.0),
+                                child: CircularProgressIndicator(),
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildQuickStat('Active Projects', '23', Icons.work, Colors.green),
+                            )
+                          else if (_statsError.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              margin: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.red.shade200),
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildQuickStat('Revenue', '₹2.5M', Icons.trending_up, Colors.orange),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error, color: Colors.red),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Failed to load statistics: $_statsError',
+                                      style: TextStyle(color: Colors.red.shade700),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _fetchDashboardStats,
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            )
+                          else
+                            Column(
+                              children: [
+                                // First Row - 3 cards
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        'Total Emp',
+                                        _dashboardStats['total_emp']?.toString() ?? '0',
+                                        Icons.people,
+                                        Colors.blue,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        'Total SDSA',
+                                        _dashboardStats['total_sdsa']?.toString() ?? '0',
+                                        Icons.security,
+                                        Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        'Total Partner',
+                                        _dashboardStats['total_partner']?.toString() ?? '0',
+                                        Icons.handshake,
+                                        Colors.orange,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                // Second Row - 2 cards
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        'Total Portfolio',
+                                        _dashboardStats['total_portfolio']?.toString() ?? '0',
+                                        Icons.folder,
+                                        Colors.purple,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildStatCard(
+                                        'Total Agents',
+                                        _dashboardStats['total_agents']?.toString() ?? '0',
+                                        Icons.person_search,
+                                        Colors.teal,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Empty space to maintain alignment
+                                    const Expanded(child: SizedBox()),
+                                  ],
+                                ),
+                              ],
+                            ),
                           const SizedBox(height: 30),
 
                           // Menu Grid
@@ -684,30 +749,54 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     );
   }
 
-  Widget _buildQuickStat(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withOpacity(0.1),
+            color.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 12),
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
               fontSize: 12,
+              fontWeight: FontWeight.w500,
               color: color.withOpacity(0.8),
             ),
             textAlign: TextAlign.center,
@@ -3762,8 +3851,17 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                                 padding: const EdgeInsets.all(16.0),
                                 itemCount: sdsaUsers.length,
                                 itemBuilder: (context, index) {
-                                                                    final user = sdsaUsers[index];
-                                  final fullName = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+                                  final user = sdsaUsers[index];
+                                  
+                                  // Debug: Print the user data to see what fields are available
+                                  print('🔍 SDSA Team Debug - User $index: $user');
+                                  
+                                  // Try multiple possible field names for first and last name
+                                  final firstName = user['first_name'] ?? user['firstName'] ?? user['firstname'] ?? '';
+                                  final lastName = user['last_name'] ?? user['lastName'] ?? user['lastname'] ?? '';
+                                  final fullName = '$firstName $lastName'.trim();
+                                  
+                                  print('🔍 SDSA Team Debug - First name: "$firstName", Last name: "$lastName", Full name: "$fullName"');
                               
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 12.0),
@@ -3827,13 +3925,16 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                                               ),
                                               const SizedBox(height: 4),
                                                                               Text(
-                                  user['Phone_number']?.toString() ?? 'N/A',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
-                                  ),
-                                ),
+                                                // Try multiple possible field names for phone number
+                                                (user['Phone_number'] ?? user['phone_number'] ?? user['phone'] ?? user['Phone'] ?? '').toString().isNotEmpty 
+                                                    ? (user['Phone_number'] ?? user['phone_number'] ?? user['phone'] ?? user['Phone'] ?? '').toString()
+                                                    : 'N/A',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -3857,14 +3958,17 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                                                 ),
                                               ),
                                               const SizedBox(height: 4),
-                                                                              Text(
-                                  user['email_id']?.toString() ?? 'N/A',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
-                                  ),
-                                ),
+                                              Text(
+                                                // Try multiple possible field names for email
+                                                (user['email_id'] ?? user['email'] ?? user['Email'] ?? '').toString().isNotEmpty
+                                                    ? (user['email_id'] ?? user['email'] ?? user['Email'] ?? '').toString()
+                                                    : 'N/A',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -9096,30 +9200,42 @@ class _PolicyPageState extends State<PolicyPage> {
   }
 
   Future<void> _loadPolicyList() async {
-    // Mock data for now - in real app, this would fetch from API
-    setState(() {
-      _policyList = [
-        {
-          'vendor_bank': 'HDFC Bank',
-          'loan_type': 'Personal Loan',
-          'image': 'policy1.jpg',
-          'content': 'Personal loan policy with competitive interest rates...',
-        },
-        {
-          'vendor_bank': 'SBI Bank',
-          'loan_type': 'Home Loan',
-          'image': 'policy2.jpg',
-          'content': 'Home loan policy with flexible repayment options...',
-        },
-        {
-          'vendor_bank': 'ICICI Bank',
-          'loan_type': 'Business Loan',
-          'image': 'policy3.jpg',
-          'content': 'Business loan policy for entrepreneurs...',
-        },
-      ];
-      _filteredPolicyList = List.from(_policyList);
-    });
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+
+      final policies = await DatabaseService.fetchPolicyList();
+      
+      setState(() {
+        _policyList = policies.map((policy) => {
+          'vendor_bank': policy['vendor_bank_name'] ?? 'Unknown Bank',
+          'loan_type': policy['loan_type'] ?? 'Unknown Type',
+          'image': policy['image'] ?? '',
+          'content': policy['content'] ?? 'No content available',
+          'id': policy['id'],
+          'vendor_bank_id': policy['vendor_bank_id'],
+          'loan_type_id': policy['loan_type_id'],
+        }).toList();
+        _filteredPolicyList = List.from(_policyList);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load policy list: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _submitForm() {
@@ -9540,121 +9656,169 @@ class _PolicyPageState extends State<PolicyPage> {
                             ),
                             const SizedBox(height: 24),
                             
-                            // Policy List
+                            // Policy List Box
                             Container(
+                              height: 400,
                               decoration: BoxDecoration(
                                 border: Border.all(color: Colors.grey.withOpacity(0.3)),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Column(
-                                children: [
-                                  // Header
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.withOpacity(0.1),
-                                      borderRadius: const BorderRadius.only(
-                                        topLeft: Radius.circular(8),
-                                        topRight: Radius.circular(8),
+                              child: _filteredPolicyList.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.policy,
+                                            size: 48,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            _errorMessage.isNotEmpty 
+                                                ? 'Error loading policies'
+                                                : 'No policies found',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          if (_errorMessage.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.all(16.0),
+                                              child: Text(
+                                                _errorMessage,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.red,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                        ],
                                       ),
+                                    )
+                                  : ListView.builder(
+                                      itemCount: _filteredPolicyList.length,
+                                      itemBuilder: (context, index) {
+                                        final policy = _filteredPolicyList[index];
+                                        return Container(
+                                          margin: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: index % 2 == 0 
+                                                ? Colors.grey.withOpacity(0.05)
+                                                : Colors.white,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: Colors.grey.withOpacity(0.2),
+                                            ),
+                                          ),
+                                          child: ListTile(
+                                            contentPadding: const EdgeInsets.all(16),
+                                            leading: CircleAvatar(
+                                              backgroundColor: Colors.blue.withOpacity(0.1),
+                                              child: Icon(
+                                                Icons.policy,
+                                                color: Colors.blue,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            title: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    policy['vendor_bank'],
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.blue.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Text(
+                                                    policy['loan_type'],
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.blue,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            subtitle: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  policy['content'],
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Row(
+                                                  children: [
+                                                    if (policy['image'] != null && policy['image'].toString().isNotEmpty)
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.green.withOpacity(0.1),
+                                                          borderRadius: BorderRadius.circular(12),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            Icon(
+                                                              Icons.image,
+                                                              size: 12,
+                                                              color: Colors.green,
+                                                            ),
+                                                            const SizedBox(width: 4),
+                                                            Text(
+                                                              'Has Image',
+                                                              style: TextStyle(
+                                                                fontSize: 10,
+                                                                color: Colors.green,
+                                                                fontWeight: FontWeight.w500,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    const Spacer(),
+                                                    Text(
+                                                      'ID: ${policy['id']}',
+                                                      style: const TextStyle(
+                                                        fontSize: 10,
+                                                        color: Colors.grey,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
-                                    child: const Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            'Vendor Bank',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            'Loan Type',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Text(
-                                            'Images',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 3,
-                                          child: Text(
-                                            'Content',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // List Items
-                                  ..._filteredPolicyList.map((policy) => Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        top: BorderSide(color: Colors.grey.withOpacity(0.2)),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            policy['vendor_bank'],
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            policy['loan_type'],
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Icon(
-                                            Icons.image,
-                                            color: Colors.blue,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 3,
-                                          child: Text(
-                                            policy['content'],
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )).toList(),
-                                ],
-                              ),
                             ),
                           ],
                         ),
