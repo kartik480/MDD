@@ -792,4 +792,52 @@ class DatabaseService {
       }
     }
   }
+
+  // Fetch partner dropdown data from database tables
+  static Future<Map<String, dynamic>> fetchPartnerDropdownData() async {
+    try {
+      print('🔍 Fetching partner dropdown data...');
+      print('🌐 API URL: $baseUrl/fetch_partner_dropdown_data.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_partner_dropdown_data.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch partner dropdown data status: ${response.statusCode}');
+      print('📄 Fetch partner dropdown data body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch partner dropdown data response: $data');
+        
+        if (data['success'] == true) {
+          return data['data'] ?? {};
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch partner dropdown data');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch partner dropdown data: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch partner dropdown data error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
 } 

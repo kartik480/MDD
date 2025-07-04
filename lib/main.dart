@@ -4421,12 +4421,22 @@ class _AddPartnerPageState extends State<AddPartnerPage> {
   String? _photoFile;
   String? _bankProofFile;
 
-  // Dropdown options
-  final List<String> _partnerTypes = ['Individual', 'Company', 'LLP', 'Partnership'];
-  final List<String> _branchStates = ['Maharashtra', 'Delhi', 'Karnataka', 'Tamil Nadu', 'Gujarat'];
-  final List<String> _branchLocations = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Ahmedabad'];
-  final List<String> _bankNames = ['SBI', 'HDFC', 'ICICI', 'Axis', 'PNB', 'Canara Bank'];
-  final List<String> _accountTypes = ['Savings', 'Current', 'Fixed Deposit'];
+  // Dropdown options - will be populated from database
+  List<String> _partnerTypes = [];
+  List<String> _branchStates = [];
+  List<String> _branchLocations = [];
+  List<String> _bankNames = [];
+  List<String> _accountTypes = [];
+  
+  // Loading state
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDropdownData();
+  }
 
   @override
   void dispose() {
@@ -4444,6 +4454,41 @@ class _AddPartnerPageState extends State<AddPartnerPage> {
     _accountNumberController.dispose();
     _ifscController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchDropdownData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+
+      final dropdownData = await DatabaseService.fetchPartnerDropdownData();
+      
+      setState(() {
+        _partnerTypes = List<String>.from(dropdownData['partner_types'] ?? []);
+        _branchStates = List<String>.from(dropdownData['branch_states'] ?? []);
+        _branchLocations = List<String>.from(dropdownData['branch_locations'] ?? []);
+        _bankNames = List<String>.from(dropdownData['bank_names'] ?? []);
+        _accountTypes = List<String>.from(dropdownData['account_types'] ?? []);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+      
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load dropdown data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _submitForm() {
@@ -4636,6 +4681,79 @@ class _AddPartnerPageState extends State<AddPartnerPage> {
                   ),
                   const SizedBox(height: 20),
                   
+                  // Loading State
+                  if (_isLoading)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        children: [
+                          CircularProgressIndicator(color: Colors.blue),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading form data...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_errorMessage.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24.0),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.error, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading form data',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _errorMessage,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.red,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _fetchDropdownData,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
                   // Form Fields
                   Container(
                     width: double.infinity,
