@@ -2152,7 +2152,7 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
         isLoading = true;
       });
 
-      final response = await DatabaseService.fetchSDSAUsersByDesignation();
+      final response = await DatabaseService.fetchUsersByDesignation();
       
       setState(() {
         users = List<Map<String, dynamic>>.from(response['users'] ?? []);
@@ -3209,7 +3209,7 @@ class _MySDSAPageState extends State<MySDSAPage> {
                                   ),
                                   const SizedBox(height: 16),
                                   const Text(
-                                    'No SDSA users found reporting to KRAJESHK',
+                                    'No SDSA users found reporting to K RAJESH KUMAR',
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: Colors.grey,
@@ -3253,7 +3253,7 @@ class _MySDSAPageState extends State<MySDSAPage> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'SDSA Users Reporting to KRAJESHK (${sdsaUsers.length})',
+                                        'SDSA Users Reporting to K RAJESH KUMAR (${sdsaUsers.length})',
                                         style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
@@ -3421,85 +3421,41 @@ class SDSATeamPage extends StatefulWidget {
 
 class _SDSATeamPageState extends State<SDSATeamPage> {
   List<Map<String, dynamic>> sdsaUsers = [];
-  List<Map<String, dynamic>> designationUsers = [];
-  List<String> designationOptions = [];
-  String? selectedDesignation;
-  bool isLoading = true;
-  bool isLoadingDesignations = false;
-  String errorMessage = '';
+  List<Map<String, dynamic>> selectedUserData = [];
+  List<Map<String, dynamic>> reportingUsers = [];
+  String? selectedUserId;
+  bool isLoading = false;
+  bool showData = false;
 
   @override
   void initState() {
     super.initState();
     _fetchSDSAUsers();
-    _loadDesignationOptions();
-  }
-
-  Future<void> _loadDesignationOptions() async {
-    setState(() {
-      isLoadingDesignations = true;
-    });
-
-    try {
-      // Fetch users with designations from API
-      final response = await DatabaseService.fetchSDSAUsersByDesignation();
-      
-      if (response['success'] == true) {
-        final dropdownOptions = List<String>.from(response['dropdown_options'] ?? []);
-        setState(() {
-          designationOptions = dropdownOptions;
-          isLoadingDesignations = false;
-        });
-      } else {
-        // Fallback to predefined options if API fails
-        setState(() {
-          designationOptions = [
-            'Chief Business Officer',
-            'Regional Business Head', 
-            'Director'
-          ];
-          isLoadingDesignations = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        isLoadingDesignations = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading designation options: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      // Fallback to predefined options
-      setState(() {
-        designationOptions = [
-          'Chief Business Officer',
-          'Regional Business Head', 
-          'Director'
-        ];
-      });
-    }
   }
 
   Future<void> _fetchSDSAUsers() async {
     try {
       setState(() {
         isLoading = true;
-        errorMessage = '';
       });
 
-      final fetchedSDSAUsers = await DatabaseService.fetchSDSAUsers();
+      // Temporarily use the employee users API until server is updated
+      final response = await DatabaseService.fetchUsersByDesignation();
       
       setState(() {
-        sdsaUsers = fetchedSDSAUsers;
+        // For now, use the designated users from the employee API since server hasn't been updated
+        sdsaUsers = List<Map<String, dynamic>>.from(response['designated_users'] ?? response['sdsa_users'] ?? response['users'] ?? []);
         isLoading = false;
       });
+      
+      // Debug: Print the response
+      print('🔍 SDSA Team Debug - Response: $response');
+      print('🔍 SDSA Team Debug - sdsaUsers count: ${sdsaUsers.length}');
+      if (sdsaUsers.isNotEmpty) {
+        print('🔍 SDSA Team Debug - First user: ${sdsaUsers.first}');
+      }
     } catch (e) {
       setState(() {
-        errorMessage = e.toString();
         isLoading = false;
       });
       if (mounted) {
@@ -3513,54 +3469,52 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
     }
   }
 
-  Future<void> _fetchUsersByDesignation(String selectedOption) async {
-    try {
-      setState(() {
-        isLoading = true;
-        errorMessage = '';
-      });
-
-      final response = await DatabaseService.fetchSDSAUsersByDesignation();
-      
-      if (response['success'] == true) {
-        final allUsers = List<Map<String, dynamic>>.from(response['users'] ?? []);
-        
-        // Find the user that matches the selected dropdown option
-        final selectedUser = allUsers.where((user) {
-          final displayName = user['display_name']?.toString() ?? '';
-          return displayName == selectedOption;
-        }).toList();
-        
+  void _showData() async {
+    if (selectedUserId != null) {
+      try {
         setState(() {
-          designationUsers = selectedUser;
+          isLoading = true;
+        });
+
+        // Find the selected user's ID
+        final selectedUser = sdsaUsers.firstWhere(
+          (user) => user['display_name'] == selectedUserId,
+          orElse: () => {},
+        );
+
+        if (selectedUser.isNotEmpty) {
+          final userId = selectedUser['id'];
+          final reportingUsersData = await DatabaseService.fetchSDSAUsersReportingToSDSA(userId);
+          
+          setState(() {
+            reportingUsers = reportingUsersData;
+            showData = true;
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            reportingUsers = [];
+            showData = true;
+            isLoading = false;
+          });
+        }
+      } catch (e) {
+        setState(() {
           isLoading = false;
         });
-      } else {
-        throw Exception(response['message'] ?? 'Failed to fetch users');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error fetching reporting users: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
-    } catch (e) {
-      setState(() {
-        errorMessage = e.toString();
-        isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error fetching users by designation: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showData() {
-    if (selectedDesignation != null) {
-      _fetchUsersByDesignation(selectedDesignation!);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a designation first'),
+          content: Text('Please select a user first'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -3569,8 +3523,10 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
 
   void _resetData() {
     setState(() {
-      selectedDesignation = null;
-      designationUsers = [];
+      selectedUserId = null;
+      selectedUserData = [];
+      reportingUsers = [];
+      showData = false;
     });
   }
 
@@ -3638,7 +3594,7 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'View all SDSA users in list format',
+                      'Select a designated user and view their SDSA team',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.grey,
@@ -3669,7 +3625,7 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Select User by Designation',
+                      'Select a Designated User',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -3678,9 +3634,8 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // Designation Dropdown
+                    // SDSA User Dropdown
                     Container(
-                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey.withOpacity(0.3)),
@@ -3688,18 +3643,50 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: selectedDesignation,
-                          hint: const Text('Select a designation'),
+                          value: selectedUserId,
+                          hint: const Text('Select a designated user'),
                           isExpanded: true,
-                          items: designationOptions.map((String designation) {
+                          items: sdsaUsers.map((user) {
+                            // Handle designated user field names
+                            final displayName = user['display_name']?.toString() ?? '';
+                            final fullName = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+                            
+                            // Debug: Print each user
+                            print('🔍 SDSA Team Debug - User: $user');
+                            print('🔍 SDSA Team Debug - Display name: $displayName');
+                            print('🔍 SDSA Team Debug - Full name: $fullName');
+                            
+                            // Show warning for users with no name
+                            if (fullName.isEmpty) {
+                              return DropdownMenuItem<String>(
+                                value: displayName,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.warning, color: Colors.orange, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'No employee name',
+                                      style: const TextStyle(fontSize: 16, color: Colors.orange),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            
                             return DropdownMenuItem<String>(
-                              value: designation,
-                              child: Text(designation),
+                              value: displayName,
+                              child: Text(
+                                displayName,
+                                style: const TextStyle(fontSize: 16),
+                              ),
                             );
                           }).toList(),
-                          onChanged: (String? newValue) {
+                          onChanged: (String? value) {
                             setState(() {
-                              selectedDesignation = newValue;
+                              selectedUserId = value;
+                              showData = false;
+                              selectedUserData = [];
+                              reportingUsers = [];
                             });
                           },
                         ),
@@ -3754,51 +3741,49 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                     ? const Center(
                         child: CircularProgressIndicator(),
                       )
-                    : (selectedDesignation != null ? designationUsers : sdsaUsers).isEmpty
-                        ? Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.people_outline,
-                                    size: 48,
-                                    color: Colors.grey,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    selectedDesignation != null 
-                                        ? 'No users found for selected designation'
-                                        : 'No SDSA users found',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey,
+                    : showData
+                        ? _buildReportingUsersList()
+                        : sdsaUsers.isEmpty
+                            ? Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    textAlign: TextAlign.center,
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.people_outline,
+                                        size: 48,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'No SDSA users found',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16.0),
-                            itemCount: (selectedDesignation != null ? designationUsers : sdsaUsers).length,
-                            itemBuilder: (context, index) {
-                              final user = (selectedDesignation != null ? designationUsers : sdsaUsers)[index];
-                              final fullName = selectedDesignation != null 
-                                  ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
-                                  : '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16.0),
+                                itemCount: sdsaUsers.length,
+                                itemBuilder: (context, index) {
+                                                                    final user = sdsaUsers[index];
+                                  final fullName = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
                               
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 12.0),
@@ -3861,16 +3846,14 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                                                 ),
                                               ),
                                               const SizedBox(height: 4),
-                                              Text(
-                                                selectedDesignation != null 
-                                                    ? 'N/A'  // tbl_user doesn't have phone
-                                                    : (user['Phone_number']?.toString() ?? 'N/A'),
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Colors.black87,
-                                                ),
-                                              ),
+                                                                              Text(
+                                  user['Phone_number']?.toString() ?? 'N/A',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
                                             ],
                                           ),
                                         ),
@@ -3894,16 +3877,14 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                                                 ),
                                               ),
                                               const SizedBox(height: 4),
-                                              Text(
-                                                selectedDesignation != null 
-                                                    ? (user['username']?.toString() ?? 'N/A')  // Use username as email
-                                                    : (user['email_id']?.toString() ?? 'N/A'),
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Colors.black87,
-                                                ),
-                                              ),
+                                                                              Text(
+                                  user['email_id']?.toString() ?? 'N/A',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
                                             ],
                                           ),
                                         ),
@@ -3935,38 +3916,7 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
                                     ),
                                     const SizedBox(height: 16),
                                     
-                                    // Designation Row (only show for designation users)
-                                    if (selectedDesignation != null) ...[
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Designation',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey[600],
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  user['designation_name']?.toString() ?? 'N/A',
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: Colors.blue,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 16),
-                                    ],
+
                                     
                                     // Action Row
                                     Row(
@@ -4030,6 +3980,268 @@ class _SDSATeamPageState extends State<SDSATeamPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildReportingUsersList() {
+    if (reportingUsers.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.people_outline,
+                size: 48,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No users found',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.people,
+                  color: Colors.blue,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'SDSA Users Reporting to ${selectedUserId ?? 'Selected Designated User'} (${reportingUsers.length})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // List
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16.0),
+              itemCount: reportingUsers.length,
+              itemBuilder: (context, index) {
+                final user = reportingUsers[index];
+                final fullName = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+                
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Name and Phone Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Name',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    if (fullName.isEmpty) ...[
+                                      const Icon(Icons.warning, color: Colors.orange, size: 16),
+                                      const SizedBox(width: 4),
+                                      const Text(
+                                        'No employee name',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.orange,
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Text(
+                                        fullName,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Phone Number',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  user['Phone_number']?.toString() ?? 'N/A',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Email Row
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Email',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            user['email_id']?.toString() ?? 'N/A',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Action Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.edit, color: Colors.blue, size: 16),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Edit',
+                                  style: TextStyle(
+                                    color: Colors.blue,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.red.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.delete, color: Colors.red, size: 16),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Delete',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

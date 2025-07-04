@@ -21,7 +21,7 @@ try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
-    // Query to fetch designated users (Chief Business Officer, Regional Business Head, Director)
+    // Query to fetch users with specific designations (Chief Business Officer, Regional Business Head, Director)
     $query = "
         SELECT 
             u.id,
@@ -37,24 +37,31 @@ try {
         ORDER BY u.firstName, u.lastName
     ";
     
+    // Also get all designations for debugging
+    $query_debug = "SELECT * FROM tbl_designation ORDER BY id";
+    $stmt_debug = $pdo->prepare($query_debug);
+    $stmt_debug->execute();
+    $all_designations = $stmt_debug->fetchAll(PDO::FETCH_ASSOC);
+    
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     
-    $designated_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Create dropdown options with user names
     $dropdownOptions = [];
-    foreach ($designated_users as $user) {
+    foreach ($users as $user) {
         $dropdownOptions[] = $user['display_name'];
     }
     
     // Return success response
     echo json_encode([
         'success' => true,
-        'message' => 'Designated users fetched successfully',
-        'designated_users' => $designated_users,
+        'message' => 'Users with specific designations fetched successfully',
+        'users' => $users,
         'dropdown_options' => $dropdownOptions,
-        'count' => count($designated_users)
+        'count' => count($users),
+        'debug_all_designations' => $all_designations
     ]);
     
 } catch (PDOException $e) {
@@ -63,7 +70,7 @@ try {
     echo json_encode([
         'success' => false,
         'message' => 'Database error: ' . $e->getMessage(),
-        'designated_users' => [],
+        'users' => [],
         'dropdown_options' => [],
         'count' => 0
     ]);
@@ -73,7 +80,7 @@ try {
     echo json_encode([
         'success' => false,
         'message' => 'Server error: ' . $e->getMessage(),
-        'designated_users' => [],
+        'users' => [],
         'dropdown_options' => [],
         'count' => 0
     ]);
