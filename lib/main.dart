@@ -666,7 +666,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                                   _navigateToPage(const DSACodesPage());
                                 }),
                                 _buildMenuCard('Policy', Icons.policy, Colors.grey, () {
-                                  _showSnackBar('Policy Management');
+                                  _navigateToPage(const PolicyPage());
                                 }),
                               ],
                             ),
@@ -9011,6 +9011,658 @@ class _DSACodesPageState extends State<DSACodesPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class PolicyPage extends StatefulWidget {
+  const PolicyPage({super.key});
+
+  @override
+  State<PolicyPage> createState() => _PolicyPageState();
+}
+
+class _PolicyPageState extends State<PolicyPage> {
+  final _formKey = GlobalKey<FormState>();
+  
+  // Form controllers
+  final _contentController = TextEditingController();
+  
+  // Dropdown values
+  String? _selectedLoanType;
+  String? _selectedVendorBank;
+  String? _selectedFilterVendorBank;
+  String? _selectedFilterLoanType;
+  
+  // File upload state
+  String? _selectedFile;
+  
+  // Dropdown options
+  List<String> _loanTypes = [];
+  List<String> _vendorBanks = [];
+  
+  // Loading states
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  String _errorMessage = '';
+  
+  // Policy list data
+  List<Map<String, dynamic>> _policyList = [];
+  List<Map<String, dynamic>> _filteredPolicyList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDropdownData();
+    _loadPolicyList();
+  }
+
+  @override
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchDropdownData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+
+      final dropdownData = await DatabaseService.fetchPolicyDropdownData();
+      
+      setState(() {
+        _loanTypes = List<String>.from(dropdownData['loan_types'] ?? []);
+        _vendorBanks = List<String>.from(dropdownData['vendor_banks'] ?? []);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load dropdown data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadPolicyList() async {
+    // Mock data for now - in real app, this would fetch from API
+    setState(() {
+      _policyList = [
+        {
+          'vendor_bank': 'HDFC Bank',
+          'loan_type': 'Personal Loan',
+          'image': 'policy1.jpg',
+          'content': 'Personal loan policy with competitive interest rates...',
+        },
+        {
+          'vendor_bank': 'SBI Bank',
+          'loan_type': 'Home Loan',
+          'image': 'policy2.jpg',
+          'content': 'Home loan policy with flexible repayment options...',
+        },
+        {
+          'vendor_bank': 'ICICI Bank',
+          'loan_type': 'Business Loan',
+          'image': 'policy3.jpg',
+          'content': 'Business loan policy for entrepreneurs...',
+        },
+      ];
+      _filteredPolicyList = List.from(_policyList);
+    });
+  }
+
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isSubmitting = true;
+      });
+      
+      // Simulate API call
+      Future.delayed(const Duration(seconds: 2), () {
+        setState(() {
+          _isSubmitting = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Policy added successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Reset form
+        _formKey.currentState!.reset();
+        _selectedLoanType = null;
+        _selectedVendorBank = null;
+        _selectedFile = null;
+        
+        // Reload policy list
+        _loadPolicyList();
+      });
+    }
+  }
+
+  void _filterPolicies() {
+    setState(() {
+      _filteredPolicyList = _policyList.where((policy) {
+        bool matchesVendorBank = _selectedFilterVendorBank == null || 
+                                policy['vendor_bank'] == _selectedFilterVendorBank;
+        bool matchesLoanType = _selectedFilterLoanType == null || 
+                              policy['loan_type'] == _selectedFilterLoanType;
+        return matchesVendorBank && matchesLoanType;
+      }).toList();
+    });
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _selectedFilterVendorBank = null;
+      _selectedFilterLoanType = null;
+      _filteredPolicyList = List.from(_policyList);
+    });
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required String? value,
+    required List<String> options,
+    required Function(String?) onChanged,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              hint: Text('Select $label'),
+              isExpanded: true,
+              items: options.map((String option) {
+                return DropdownMenuItem<String>(
+                  value: option,
+                  child: Text(option),
+                );
+              }).toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+        if (validator != null && validator(value) != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              validator(value)!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFileUploadField({
+    required String label,
+    required String? fileName,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey.withOpacity(0.1),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.upload_file, color: Colors.blue),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    fileName ?? 'Choose File',
+                    style: TextStyle(
+                      color: fileName != null ? Colors.black87 : Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Policy Management',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue, Colors.lightBlueAccent],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              )
+            : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      // Add Policy Section
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24.0),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Add Policy',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              
+                              // Loan Type and Vendor Bank
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildDropdownField(
+                                      label: 'Loan Type',
+                                      value: _selectedLoanType,
+                                      options: _loanTypes,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _selectedLoanType = value;
+                                        });
+                                      },
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please select loan type';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildDropdownField(
+                                      label: 'Vendor Bank',
+                                      value: _selectedVendorBank,
+                                      options: _vendorBanks,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _selectedVendorBank = value;
+                                        });
+                                      },
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please select vendor bank';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              
+                              // File Upload
+                              _buildFileUploadField(
+                                label: 'Choose File',
+                                fileName: _selectedFile,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedFile = 'policy_document.pdf';
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              
+                              // Content
+                              TextFormField(
+                                controller: _contentController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Enter Content',
+                                  border: OutlineInputBorder(),
+                                  alignLabelWithHint: true,
+                                ),
+                                maxLines: 4,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter content';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 24),
+                              
+                              // Submit Button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: _isSubmitting ? null : _submitForm,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: _isSubmitting
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Submit',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 30),
+                      
+                      // Policy List Section
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24.0),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Policy List',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            
+                            // Filter Section
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildDropdownField(
+                                    label: 'Select Vendor Bank',
+                                    value: _selectedFilterVendorBank,
+                                    options: ['All', ..._vendorBanks],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedFilterVendorBank = value == 'All' ? null : value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: _buildDropdownField(
+                                    label: 'Select Loan',
+                                    value: _selectedFilterLoanType,
+                                    options: ['All', ..._loanTypes],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedFilterLoanType = value == 'All' ? null : value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            
+                            // Filter and Reset Buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: _filterPolicies,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                    child: const Text('Filter'),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: _resetFilters,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.grey,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                    child: const Text('Reset'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            
+                            // Policy List
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                children: [
+                                  // Header
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.1),
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(8),
+                                        topRight: Radius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            'Vendor Bank',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            'Loan Type',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 1,
+                                          child: Text(
+                                            'Images',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 3,
+                                          child: Text(
+                                            'Content',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // List Items
+                                  ..._filteredPolicyList.map((policy) => Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        top: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            policy['vendor_bank'],
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            policy['loan_type'],
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 1,
+                                          child: Icon(
+                                            Icons.image,
+                                            color: Colors.blue,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 3,
+                                          child: Text(
+                                            policy['content'],
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )).toList(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }
