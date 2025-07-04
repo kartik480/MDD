@@ -2199,12 +2199,219 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
     }
   }
 
+  int _getUsersWithMissingNames() {
+    int count = 0;
+    for (var users in groupedReportingUsers.values) {
+      for (var user in users) {
+        final fullName = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+        if (fullName.isEmpty) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  Widget _buildSelectedUserData() {
+    if (selectedUserData.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.people_outline,
+                size: 48,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No users found reporting to this manager',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: selectedUserData.length,
+      itemBuilder: (context, index) {
+        final user = selectedUserData[index];
+        final fullName = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+        
+        // Check if user has no employee name
+        if (fullName.isEmpty) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12.0),
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey.withOpacity(0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No employee name available for this user',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.orange,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12.0),
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.grey.withOpacity(0.3),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Name and Designation Row
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Employee Name',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          fullName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Designation',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user['designation_name']?.toString() ?? 'N/A',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              // Username Row
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Username',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user['username']?.toString() ?? 'N/A',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showData() {
     if (selectedUserId != null) {
       setState(() {
         showData = true;
-        // For now, we'll show the selected user's data
-        selectedUserData = users.where((user) => user['id'].toString() == selectedUserId).toList();
+        // Find users who report to the selected user
+        selectedUserData = reportingUsers.where((user) => user['reportingTo'].toString() == selectedUserId).toList();
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2343,8 +2550,12 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
                             return DropdownMenuItem<String>(
                               value: user['id']?.toString(),
                               child: Text(
-                                displayName.isEmpty ? 'N/A' : displayName,
-                                style: const TextStyle(fontSize: 16),
+                                displayName.isEmpty ? 'No employee name available' : displayName,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: displayName.isEmpty ? Colors.orange : Colors.black87,
+                                  fontStyle: displayName.isEmpty ? FontStyle.italic : FontStyle.normal,
+                                ),
                               ),
                             );
                           }).toList(),
@@ -2411,10 +2622,12 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
               ),
               const SizedBox(height: 20),
 
-              // List Boxes Section - Users Reporting to Managers
+                            // List Boxes Section - Users Reporting to Managers
               Expanded(
-                child: reportingUsers.isNotEmpty
-                    ? ListView.builder(
+                child: showData && selectedUserId != null
+                    ? _buildSelectedUserData()
+                    : reportingUsers.isNotEmpty
+                        ? ListView.builder(
                         itemCount: groupedReportingUsers.length,
                         itemBuilder: (context, index) {
                           final managerKey = groupedReportingUsers.keys.elementAt(index);
@@ -2488,141 +2701,177 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
                                   ),
                                 ),
                                 
-                                // Users List
-                                ...usersInGroup.map((user) {
-                                  final fullName = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
-                                  
-                                  return Container(
-                                    padding: const EdgeInsets.all(16.0),
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Colors.grey.withOpacity(0.2),
-                                          width: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Name and Designation Row
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    'Employee Name',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    fullName.isEmpty ? 'N/A' : fullName,
-                                                    style: const TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Colors.black87,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    'Designation',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    user['designation_name']?.toString() ?? 'N/A',
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.w500,
-                                                      color: Colors.blue,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        
-                                        // Username and Manager Row
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    'Username',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    user['username']?.toString() ?? 'N/A',
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.w500,
-                                                      color: Colors.black87,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    'Reports To',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    user['manager_name']?.toString() ?? 'N/A',
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.w500,
-                                                      color: Colors.green,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ],
-                            ),
-                          );
-                        },
-                      )
-                    : Container(
+                                                                 // Users List
+                                 ...usersInGroup.map((user) {
+                                   final fullName = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+                                   
+                                   // Check if user has no employee name
+                                   if (fullName.isEmpty) {
+                                     return Container(
+                                       padding: const EdgeInsets.all(16.0),
+                                       decoration: BoxDecoration(
+                                         border: Border(
+                                           bottom: BorderSide(
+                                             color: Colors.grey.withOpacity(0.2),
+                                             width: 1,
+                                           ),
+                                         ),
+                                       ),
+                                       child: Row(
+                                         children: [
+                                           Icon(
+                                             Icons.warning_amber_rounded,
+                                             color: Colors.orange,
+                                             size: 20,
+                                           ),
+                                           const SizedBox(width: 12),
+                                           Expanded(
+                                             child: Text(
+                                               'No employee name available for this user',
+                                               style: const TextStyle(
+                                                 fontSize: 14,
+                                                 fontWeight: FontWeight.w500,
+                                                 color: Colors.orange,
+                                                 fontStyle: FontStyle.italic,
+                                               ),
+                                             ),
+                                           ),
+                                         ],
+                                       ),
+                                     );
+                                   }
+                                   
+                                   return Container(
+                                     padding: const EdgeInsets.all(16.0),
+                                     decoration: BoxDecoration(
+                                       border: Border(
+                                         bottom: BorderSide(
+                                           color: Colors.grey.withOpacity(0.2),
+                                           width: 1,
+                                         ),
+                                       ),
+                                     ),
+                                     child: Column(
+                                       crossAxisAlignment: CrossAxisAlignment.start,
+                                       children: [
+                                         // Name and Designation Row
+                                         Row(
+                                           children: [
+                                             Expanded(
+                                               child: Column(
+                                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                                 children: [
+                                                   Text(
+                                                     'Employee Name',
+                                                     style: TextStyle(
+                                                       fontSize: 12,
+                                                       color: Colors.grey[600],
+                                                       fontWeight: FontWeight.w500,
+                                                     ),
+                                                   ),
+                                                   const SizedBox(height: 4),
+                                                   Text(
+                                                     fullName,
+                                                     style: const TextStyle(
+                                                       fontSize: 16,
+                                                       fontWeight: FontWeight.bold,
+                                                       color: Colors.black87,
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ),
+                                             Expanded(
+                                               child: Column(
+                                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                                 children: [
+                                                   Text(
+                                                     'Designation',
+                                                     style: TextStyle(
+                                                       fontSize: 12,
+                                                       color: Colors.grey[600],
+                                                       fontWeight: FontWeight.w500,
+                                                     ),
+                                                   ),
+                                                   const SizedBox(height: 4),
+                                                   Text(
+                                                     user['designation_name']?.toString() ?? 'N/A',
+                                                     style: const TextStyle(
+                                                       fontSize: 14,
+                                                       fontWeight: FontWeight.w500,
+                                                       color: Colors.blue,
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ),
+                                           ],
+                                         ),
+                                         const SizedBox(height: 12),
+                                         
+                                         // Username and Manager Row
+                                         Row(
+                                           children: [
+                                             Expanded(
+                                               child: Column(
+                                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                                 children: [
+                                                   Text(
+                                                     'Username',
+                                                     style: TextStyle(
+                                                       fontSize: 12,
+                                                       color: Colors.grey[600],
+                                                       fontWeight: FontWeight.w500,
+                                                     ),
+                                                   ),
+                                                   const SizedBox(height: 4),
+                                                   Text(
+                                                     user['username']?.toString() ?? 'N/A',
+                                                     style: const TextStyle(
+                                                       fontSize: 14,
+                                                       fontWeight: FontWeight.w500,
+                                                       color: Colors.black87,
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ),
+                                             Expanded(
+                                               child: Column(
+                                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                                 children: [
+                                                   Text(
+                                                     'Reports To',
+                                                     style: TextStyle(
+                                                       fontSize: 12,
+                                                       color: Colors.grey[600],
+                                                       fontWeight: FontWeight.w500,
+                                                     ),
+                                                   ),
+                                                   const SizedBox(height: 4),
+                                                   Text(
+                                                     user['manager_name']?.toString() ?? 'N/A',
+                                                     style: const TextStyle(
+                                                       fontSize: 14,
+                                                       fontWeight: FontWeight.w500,
+                                                       color: Colors.green,
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ),
+                                           ],
+                                         ),
+                                       ],
+                                     ),
+                                   );
+                                                                                                   }).toList(),
+                               ],
+                             ),
+                           );
+                         },
+                       )
+                      : Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
