@@ -33,7 +33,7 @@ try {
             CONCAT(u.firstName, ' ', u.lastName, ' (', d.designation_name, ')') as display_name
         FROM tbl_user u
         INNER JOIN tbl_designation d ON u.designation_id = d.id
-        WHERE d.designation_name IN ('Chief Business Officer', 'Regional Business Head', 'Director')
+        WHERE d.designation_name IN ('Chief Business Officer', 'Director')
         ORDER BY d.designation_name, u.firstName, u.lastName
     ";
     

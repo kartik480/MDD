@@ -2133,6 +2133,8 @@ class EmpTeamPage extends StatefulWidget {
 class _EmpTeamPageState extends State<EmpTeamPage> {
   List<Map<String, dynamic>> users = [];
   List<Map<String, dynamic>> selectedUserData = [];
+  List<Map<String, dynamic>> reportingUsers = [];
+  Map<String, List<Map<String, dynamic>>> groupedReportingUsers = {};
   String? selectedUserId;
   bool isLoading = false;
   bool showData = false;
@@ -2141,6 +2143,7 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
   void initState() {
     super.initState();
     _fetchUsers();
+    _fetchReportingUsers();
   }
 
   Future<void> _fetchUsers() async {
@@ -2149,10 +2152,10 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
         isLoading = true;
       });
 
-      final fetchedUsers = await DatabaseService.fetchUsers();
+      final response = await DatabaseService.fetchSDSAUsersByDesignation();
       
       setState(() {
-        users = fetchedUsers;
+        users = List<Map<String, dynamic>>.from(response['users'] ?? []);
         isLoading = false;
       });
     } catch (e) {
@@ -2170,12 +2173,38 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
     }
   }
 
+  Future<void> _fetchReportingUsers() async {
+    try {
+      final response = await DatabaseService.fetchUsersReportingToManagers();
+      
+      setState(() {
+        reportingUsers = List<Map<String, dynamic>>.from(response['reporting_users'] ?? []);
+        
+        // Convert grouped_users from Map<String, dynamic> to Map<String, List<Map<String, dynamic>>>
+        final groupedData = response['grouped_users'] as Map<String, dynamic>? ?? {};
+        groupedReportingUsers = groupedData.map((key, value) => MapEntry(
+          key, 
+          List<Map<String, dynamic>>.from(value as List)
+        ));
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error fetching reporting users: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showData() {
     if (selectedUserId != null) {
       setState(() {
         showData = true;
         // For now, we'll show the selected user's data
-        selectedUserData = users.where((user) => user['employee_no'] == selectedUserId).toList();
+        selectedUserData = users.where((user) => user['id'].toString() == selectedUserId).toList();
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2310,11 +2339,11 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
                           hint: const Text('Choose an employee'),
                           isExpanded: true,
                           items: users.map((user) {
-                            final fullName = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+                            final displayName = user['display_name'] ?? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
                             return DropdownMenuItem<String>(
-                              value: user['employee_no']?.toString(),
+                              value: user['id']?.toString(),
                               child: Text(
-                                fullName.isEmpty ? 'N/A' : fullName,
+                                displayName.isEmpty ? 'N/A' : displayName,
                                 style: const TextStyle(fontSize: 16),
                               ),
                             );
@@ -2382,18 +2411,17 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
               ),
               const SizedBox(height: 20),
 
-              // List Boxes Section
+              // List Boxes Section - Users Reporting to Managers
               Expanded(
-                child: showData && selectedUserData.isNotEmpty
+                child: reportingUsers.isNotEmpty
                     ? ListView.builder(
-                        itemCount: selectedUserData.length,
+                        itemCount: groupedReportingUsers.length,
                         itemBuilder: (context, index) {
-                          final user = selectedUserData[index];
-                          final fullName = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+                          final managerKey = groupedReportingUsers.keys.elementAt(index);
+                          final usersInGroup = groupedReportingUsers[managerKey] ?? [];
                           
                           return Container(
-                            margin: const EdgeInsets.only(bottom: 12.0),
-                            padding: const EdgeInsets.all(16.0),
+                            margin: const EdgeInsets.only(bottom: 16.0),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
@@ -2412,114 +2440,183 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Name and Phone Row
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Fullname',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            fullName.isEmpty ? 'N/A' : fullName,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                // Manager Header
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16.0),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(12),
+                                      topRight: Radius.circular(12),
                                     ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Employee ID',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            user['employee_no']?.toString() ?? 'N/A',
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue,
-                                            ),
-                                          ),
-                                        ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person,
+                                        color: Colors.blue,
+                                        size: 20,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Reporting to: $managerKey',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          '${usersInGroup.length} users',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 16),
                                 
-                                // Mobile and Email Row
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Mobile',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            user['mobile']?.toString() ?? 'N/A',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                        ],
+                                // Users List
+                                ...usersInGroup.map((user) {
+                                  final fullName = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
+                                  
+                                  return Container(
+                                    padding: const EdgeInsets.all(16.0),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Colors.grey.withOpacity(0.2),
+                                          width: 1,
+                                        ),
                                       ),
                                     ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Email',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w500,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Name and Designation Row
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Employee Name',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey[600],
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    fullName.isEmpty ? 'N/A' : fullName,
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            user['email_id']?.toString() ?? 'N/A',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                              color: Colors.black87,
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Designation',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey[600],
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    user['designation_name']?.toString() ?? 'N/A',
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.blue,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        
+                                        // Username and Manager Row
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Username',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey[600],
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    user['username']?.toString() ?? 'N/A',
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Reports To',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey[600],
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    user['manager_name']?.toString() ?? 'N/A',
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
+                                  );
+                                }).toList(),
                               ],
                             ),
                           );
@@ -2542,13 +2639,13 @@ class _EmpTeamPageState extends State<EmpTeamPage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                showData ? Icons.info_outline : Icons.people_outline,
+                                Icons.people_outline,
                                 size: 48,
                                 color: Colors.grey,
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                showData ? 'No data available for selected user' : 'Select a user and click "Show Data" to view information',
+                                'No users reporting to Chief Business Officer or Director found',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey,

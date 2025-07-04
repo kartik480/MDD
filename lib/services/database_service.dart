@@ -645,4 +645,52 @@ class DatabaseService {
       }
     }
   }
+
+  // Fetch users who report to Chief Business Officer and Director users
+  static Future<Map<String, dynamic>> fetchUsersReportingToManagers() async {
+    try {
+      print('🔍 Fetching users who report to Chief Business Officer and Director users...');
+      print('🌐 API URL: $baseUrl/fetch_users_reporting_to_managers.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_users_reporting_to_managers.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch users reporting to managers status: ${response.statusCode}');
+      print('📄 Fetch users reporting to managers body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch users reporting to managers response: $data');
+        
+        if (data['success'] == true) {
+          return data;
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch users reporting to managers');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch users reporting to managers: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch users reporting to managers error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
 } 
