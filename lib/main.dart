@@ -733,6 +733,9 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                                 _buildMenuCard('Policy', Icons.policy, Colors.grey, () {
                                   _navigateToPage(const PolicyPage());
                                 }),
+                                _buildMenuCard('Bankers', Icons.account_balance, Colors.brown, () {
+                                  _navigateToPage(const BankersPage());
+                                }),
                               ],
                             ),
                           ),
@@ -1030,6 +1033,24 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                     onTap: () {
                       Navigator.pop(context);
                       _navigateToPage(const DSACodesPage());
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.account_balance,
+                    title: 'Bankers',
+                    subtitle: 'Banker management',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToPage(const BankersPage());
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.policy,
+                    title: 'Policy',
+                    subtitle: 'Policy management',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToPage(const PolicyPage());
                     },
                   ),
                 ],
@@ -9910,6 +9931,999 @@ class PayoutTeamPage extends StatelessWidget {
       ),
       body: const Center(
         child: Text('Payout Team Page - Coming Soon'),
+      ),
+    );
+  }
+}
+
+class BankersPage extends StatefulWidget {
+  const BankersPage({super.key});
+
+  @override
+  State<BankersPage> createState() => _BankersPageState();
+}
+
+class _BankersPageState extends State<BankersPage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.brown,
+        foregroundColor: Colors.white,
+        title: const Text('Bankers Management'),
+        elevation: 0,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.brown, Color(0xFF8D6E63)],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Bankers',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Manage banker information and records',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                
+                // Menu Grid
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    children: [
+                      _buildMenuCard(
+                        'Add',
+                        Icons.add_circle,
+                        Colors.green,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AddBankerPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildMenuCard(
+                        'List',
+                        Icons.list_alt,
+                        Colors.blue,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const BankerListPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 40, color: color),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AddBankerPage extends StatefulWidget {
+  const AddBankerPage({super.key});
+
+  @override
+  State<AddBankerPage> createState() => _AddBankerPageState();
+}
+
+class _AddBankerPageState extends State<AddBankerPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _bankerNameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _addressController = TextEditingController();
+  
+  // Dropdown values
+  String? _selectedVendorBank;
+  String? _selectedDesignation;
+  String? _selectedLoanType;
+  String? _selectedBranchState;
+  String? _selectedBranchLocation;
+  
+  // File upload state
+  String? _selectedVisitingCard;
+  
+  // Dropdown options
+  List<String> _vendorBanks = [];
+  List<String> _designations = [];
+  List<String> _loanTypes = [];
+  List<String> _states = [];
+  List<String> _branchLocations = [];
+  
+  // Loading states
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDropdownData();
+  }
+
+  @override
+  void dispose() {
+    _bankerNameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchDropdownData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+
+      final dropdownData = await DatabaseService.fetchBankerDropdownData();
+      
+      setState(() {
+        _vendorBanks = List<String>.from(dropdownData['vendor_banks'] ?? []);
+        _designations = List<String>.from(dropdownData['designations'] ?? []);
+        _loanTypes = List<String>.from(dropdownData['loan_types'] ?? []);
+        _states = List<String>.from(dropdownData['states'] ?? []);
+        _branchLocations = List<String>.from(dropdownData['branch_locations'] ?? []);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load dropdown data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isSubmitting = true;
+      });
+      
+      try {
+        final bankerData = {
+          'vendor_bank': _selectedVendorBank,
+          'banker_name': _bankerNameController.text.trim(),
+          'phone_no': _phoneController.text.trim(),
+          'email': _emailController.text.trim(),
+          'designation': _selectedDesignation,
+          'loan_type': _selectedLoanType,
+          'branch_state': _selectedBranchState,
+          'branch_location': _selectedBranchLocation,
+          'visiting_card': _selectedVisitingCard,
+          'address': _addressController.text.trim(),
+        };
+
+        final result = await DatabaseService.addBanker(bankerData);
+        
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Banker added successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // Reset form
+          _formKey.currentState!.reset();
+          _bankerNameController.clear();
+          _phoneController.clear();
+          _emailController.clear();
+          _addressController.clear();
+          _selectedVendorBank = null;
+          _selectedDesignation = null;
+          _selectedLoanType = null;
+          _selectedBranchState = null;
+          _selectedBranchLocation = null;
+          _selectedVisitingCard = null;
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+   // Helper for dropdown fields
+  Widget _buildDropdownField({
+    required String label,
+    required String? value,
+    required List<String> options,
+    required Function(String?) onChanged,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              hint: Text('Select $label'),
+              isExpanded: true,
+              items: options.map((String option) {
+                return DropdownMenuItem<String>(
+                  value: option,
+                  child: Text(option),
+                );
+              }).toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+        if (validator != null)
+          Builder(
+            builder: (context) {
+              final error = validator(value);
+              if (error != null) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    error,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+      ],
+    );
+  }
+
+  // Helper for file upload field
+  Widget _buildFileUploadField({
+    required String label,
+    String? fileName,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey.withOpacity(0.05),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.upload_file,
+                  color: Colors.brown,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    fileName ?? 'Choose file',
+                    style: TextStyle(
+                      color: fileName != null ? Colors.black87 : Colors.grey,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.brown,
+        foregroundColor: Colors.white,
+        title: const Text('Add Banker'),
+        elevation: 0,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.brown, Color(0xFF8D6E63)],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Add New Banker',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Enter banker details below',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  
+                  // Form Container
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: _isLoading
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : _errorMessage.isNotEmpty
+                            ? Container(
+                                padding: const EdgeInsets.all(16),
+                                margin: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.red.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.error, color: Colors.red),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Failed to load form data: $_errorMessage',
+                                        style: TextStyle(color: Colors.red.shade700),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: _fetchDropdownData,
+                                      child: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Banker Information',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.brown,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  
+                                  // Vendor Bank Dropdown
+                                  _buildDropdownField(
+                                    label: 'Vendor Bank',
+                                    value: _selectedVendorBank,
+                                    options: _vendorBanks,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedVendorBank = value;
+                                      });
+                                    },
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please select vendor bank';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Banker Name Field
+                                  TextFormField(
+                                    controller: _bankerNameController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Banker Name',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.person),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter banker name';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Phone Number Field
+                                  TextFormField(
+                                    controller: _phoneController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Phone Number',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.phone),
+                                    ),
+                                    keyboardType: TextInputType.phone,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter phone number';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Email Field
+                                  TextFormField(
+                                    controller: _emailController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Email',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.email),
+                                    ),
+                                    keyboardType: TextInputType.emailAddress,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter email address';
+                                      }
+                                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                                        return 'Please enter a valid email address';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Banker Designation Dropdown
+                                  _buildDropdownField(
+                                    label: 'Banker Designation',
+                                    value: _selectedDesignation,
+                                    options: _designations,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedDesignation = value;
+                                      });
+                                    },
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please select designation';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Type of Loans Dropdown
+                                  _buildDropdownField(
+                                    label: 'Type of Loans',
+                                    value: _selectedLoanType,
+                                    options: _loanTypes,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedLoanType = value;
+                                      });
+                                    },
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please select loan type';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Branch State Dropdown
+                                  _buildDropdownField(
+                                    label: 'Branch State',
+                                    value: _selectedBranchState,
+                                    options: _states,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedBranchState = value;
+                                      });
+                                    },
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please select branch state';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Branch Location Dropdown
+                                  _buildDropdownField(
+                                    label: 'Branch Location',
+                                    value: _selectedBranchLocation,
+                                    options: _branchLocations,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedBranchLocation = value;
+                                      });
+                                    },
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please select branch location';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Visiting Card File Upload
+                                  _buildFileUploadField(
+                                    label: 'Visiting Card',
+                                    fileName: _selectedVisitingCard,
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedVisitingCard = 'visiting_card.pdf';
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Address Field
+                                  TextFormField(
+                                    controller: _addressController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Address',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.home),
+                                      alignLabelWithHint: true,
+                                    ),
+                                    maxLines: 3,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter address';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 24),
+                                  
+                                  // Submit Button
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 50,
+                                    child: ElevatedButton(
+                                      onPressed: _isSubmitting ? null : _submitForm,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.brown,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: _isSubmitting
+                                          ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Submit',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class BankerListPage extends StatefulWidget {
+  const BankerListPage({super.key});
+
+  @override
+  State<BankerListPage> createState() => _BankerListPageState();
+}
+
+class _BankerListPageState extends State<BankerListPage> {
+  List<Map<String, dynamic>> _bankers = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBankers();
+  }
+
+  void _loadBankers() {
+    // Simulate loading bankers data
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() {
+        _bankers = [
+          {
+            'id': 1,
+            'name': 'John Doe',
+            'email': 'john.doe@bank.com',
+            'phone': '+1234567890',
+            'bank': 'ABC Bank',
+            'branch': 'Main Branch',
+          },
+          {
+            'id': 2,
+            'name': 'Jane Smith',
+            'email': 'jane.smith@bank.com',
+            'phone': '+1234567891',
+            'bank': 'XYZ Bank',
+            'branch': 'Downtown Branch',
+          },
+          {
+            'id': 3,
+            'name': 'Mike Johnson',
+            'email': 'mike.johnson@bank.com',
+            'phone': '+1234567892',
+            'bank': 'DEF Bank',
+            'branch': 'City Center Branch',
+          },
+        ];
+        _isLoading = false;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.brown,
+        foregroundColor: Colors.white,
+        title: const Text('Banker List'),
+        elevation: 0,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.brown, Color(0xFF8D6E63)],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Banker List',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${_bankers.length} bankers found',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Bankers List
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(),
+                          )
+                        : _bankers.isEmpty
+                            ? const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.people_outline,
+                                      size: 64,
+                                      color: Colors.grey,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'No bankers found',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _bankers.length,
+                                itemBuilder: (context, index) {
+                                  final banker = _bankers[index];
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    decoration: BoxDecoration(
+                                      color: index % 2 == 0 
+                                          ? Colors.grey.withOpacity(0.05)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.grey.withOpacity(0.2),
+                                      ),
+                                    ),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.all(16),
+                                      leading: CircleAvatar(
+                                        backgroundColor: Colors.brown.withOpacity(0.1),
+                                        child: Icon(
+                                          Icons.account_balance,
+                                          color: Colors.brown,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        banker['name'],
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.email,
+                                                size: 14,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  banker['email'],
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.phone,
+                                                size: 14,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                banker['phone'],
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.account_balance,
+                                                size: 14,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                '${banker['bank']} - ${banker['branch']}',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      trailing: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.brown.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          'ID: ${banker['id']}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.brown,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

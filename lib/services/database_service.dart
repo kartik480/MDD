@@ -984,4 +984,102 @@ class DatabaseService {
       }
     }
   }
+
+  // Fetch banker dropdown data from database tables
+  static Future<Map<String, dynamic>> fetchBankerDropdownData() async {
+    try {
+      print('🔍 Fetching banker dropdown data...');
+      print('🌐 API URL: $baseUrl/fetch_banker_dropdown_data.php');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch_banker_dropdown_data.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Fetch banker dropdown data status: ${response.statusCode}');
+      print('📄 Fetch banker dropdown data body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Fetch banker dropdown data response: $data');
+        
+        if (data['success'] == true) {
+          return data['data'] ?? {};
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch banker dropdown data');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to fetch banker dropdown data: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Fetch banker dropdown data error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
+
+  // Add new banker to database
+  static Future<Map<String, dynamic>> addBanker(Map<String, dynamic> bankerData) async {
+    try {
+      print('🔍 Adding new banker...');
+      print('🌐 API URL: $baseUrl/add_banker.php');
+      print('📄 Banker data: $bankerData');
+      
+      final networkTest = await NetworkService.testServerConnectivity();
+      if (!networkTest['success']) {
+        throw Exception(NetworkService.getErrorMessage(networkTest['type']));
+      }
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/add_banker.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode(bankerData),
+      ).timeout(const Duration(seconds: 30));
+
+      print('📡 Add banker status: ${response.statusCode}');
+      print('📄 Add banker body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Add banker response: $data');
+        
+        if (data['success'] == true) {
+          return data;
+        } else {
+          throw Exception(data['message'] ?? 'Failed to add banker');
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('❌ Error body: ${response.body}');
+        throw Exception('Failed to add banker: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Add banker error: $e');
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Request timed out. Please try again.');
+      } else {
+        throw Exception('Connection error: $e');
+      }
+    }
+  }
 } 
